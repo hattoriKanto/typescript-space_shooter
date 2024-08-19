@@ -1,6 +1,6 @@
 import * as Pixi from "pixi.js";
-import { images } from "../assets/images";
-import { fonts } from "../assets/fonts";
+import { images } from "../../public/images";
+import { fonts } from "../../public/fonts";
 import {
   AsteroidLevel,
   BossLevel,
