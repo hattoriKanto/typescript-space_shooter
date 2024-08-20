@@ -19,7 +19,7 @@ export const config = {
   },
   amount: {
     playerBullets: 10,
-    asteroids: 1,
+    asteroids: 10,
     bossHealth: 4,
   },
   keyBindings: {
