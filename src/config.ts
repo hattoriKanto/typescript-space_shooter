@@ -18,12 +18,16 @@ export const config = {
   },
   amount: {
     playerBullets: 10,
-    asteroids: 2,
+    asteroids: 1,
     bossHealth: 4,
   },
   keyBindings: {
     left: "ArrowLeft",
     right: "ArrowRight",
     fire: " ",
+  },
+  padding: {
+    screenTop: 90,
+    text: 10,
   },
 };

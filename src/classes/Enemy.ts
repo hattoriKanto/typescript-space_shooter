@@ -44,7 +44,9 @@ export class Asteroid extends Enemy {
         this._sprite.width / 2
     );
     const initialY = Math.floor(
-      100 + (Math.random() * this._app.canvas.height) / 4
+      config.padding.text +
+        config.padding.screenTop +
+        (Math.random() * this._app.canvas.height) / 4
     );
 
     return { initialX, initialY };
@@ -177,7 +179,8 @@ export class Boss extends Enemy {
     this._app.stage.addChild(this._sprite);
 
     this._sprite.x = this._app.canvas.width / 2;
-    this._sprite.y = this._sprite.height + 50;
+    this._sprite.y =
+      this._sprite.height + config.padding.screenTop + config.padding.text;
     this._sprite.setSize(config.size.boss);
     this._sprite.anchor.set(0.5, 0);
     this._sprite.rotation = Math.PI;

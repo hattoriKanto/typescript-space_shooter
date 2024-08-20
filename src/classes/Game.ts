@@ -20,9 +20,9 @@ export class Game {
   constructor(app: Pixi.Application<Pixi.Renderer>) {
     this._app = app;
     this._textureStore = new TextureStore(this._app);
-    this._level = new AsteroidLevel(this._app);
-    this._player = new Player(this._app);
     this._background = new Background(this._app);
+    this._player = new Player(this._app);
+    this._level = new AsteroidLevel(this);
   }
 
   private showStartOverlay() {
@@ -30,13 +30,13 @@ export class Game {
     startOverlay.setup();
 
     startOverlay.overlay.on("click", () => {
-      this._level.setup(this._player, this._textureStore);
+      this._level.setup();
 
-      this._level.setVictoryCallback = () => {
+      this._level.victoryCallback = () => {
         this.showVictoryOverlay();
       };
 
-      this._level.setDefeatCallback = () => {
+      this._level.defeatCallback = () => {
         this.showDefeatOverlay();
       };
 
@@ -54,18 +54,18 @@ export class Game {
     victoryOverlay.setup();
     victoryOverlay.overlay.on("click", () => {
       if (this._level instanceof AsteroidLevel) {
-        this._level = new BossLevel(this._app);
+        this._level = new BossLevel(this);
       } else {
-        this._level = new AsteroidLevel(this._app);
+        this._level = new AsteroidLevel(this);
       }
 
-      this._level.setup(this._player, this._textureStore);
+      this._level.setup();
 
-      this._level.setVictoryCallback = () => {
+      this._level.victoryCallback = () => {
         this.showVictoryOverlay();
       };
 
-      this._level.setDefeatCallback = () => {
+      this._level.defeatCallback = () => {
         this.showDefeatOverlay();
       };
 
@@ -73,7 +73,7 @@ export class Game {
     });
   }
 
-  private showDefeatOverlay() {
+  showDefeatOverlay() {
     this.cleanup();
 
     const defeatOverlay = new Overlay(
@@ -84,14 +84,14 @@ export class Game {
     defeatOverlay.overlay.on("click", () => {
       this.cleanup();
 
-      this._level = new AsteroidLevel(this._app);
-      this._level.setup(this._player, this._textureStore);
+      this._level = new AsteroidLevel(this);
+      this._level.setup();
 
-      this._level.setVictoryCallback = () => {
+      this._level.victoryCallback = () => {
         this.showVictoryOverlay();
       };
 
-      this._level.setDefeatCallback = () => {
+      this._level.defeatCallback = () => {
         this.showDefeatOverlay();
       };
 
@@ -115,6 +115,18 @@ export class Game {
       const backgroundTexture = this._textureStore.textures.background;
       this._background.setup(backgroundTexture);
     }
+  }
+
+  get app() {
+    return this._app;
+  }
+
+  get player() {
+    return this._player;
+  }
+
+  get textureStore() {
+    return this._textureStore;
   }
 
   async start() {

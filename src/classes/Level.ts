@@ -1,105 +1,140 @@
 import * as Pixi from "pixi.js";
-import {
-  AsteroidStore,
-  Asteroid,
-  Boss,
-  Player,
-  BulletStore,
-  TextureStore,
-} from ".";
+
+import { AsteroidStore, Asteroid, Boss, Player, BulletStore, Game } from ".";
 import { config } from "../config";
 import { checkCollision } from "../utils";
 import { Explosion } from "./Explosion";
-import { Position } from "../types/types";
 
 export class Level {
-  protected _app: Pixi.Application<Pixi.Renderer>;
-  protected _player: Player | null;
-  protected _playerBullets: BulletStore;
-  protected _bulletsOnScreen: BulletStore;
+  protected game: Game;
+  protected app: Pixi.Application<Pixi.Renderer>;
+  protected player: Player;
+  protected playerBullets: BulletStore;
+  protected bulletsOnScreen: BulletStore;
   protected _victoryCallback: () => void;
   protected _defeatCallback: () => void;
-  protected _textElement: Pixi.Text;
+  protected textElements: Pixi.Text[];
+  protected timer: NodeJS.Timeout | null;
+  protected timeRemaining: number;
 
-  constructor(app: Pixi.Application<Pixi.Renderer>) {
-    this._app = app;
-    this._player = null;
-    this._playerBullets = new BulletStore();
-    this._bulletsOnScreen = new BulletStore();
-    this._textElement = new Pixi.Text();
+  constructor(game: Game) {
+    this.game = game;
+    this.app = this.game.app;
+    this.player = this.game.player;
+    this.playerBullets = new BulletStore();
+    this.bulletsOnScreen = new BulletStore();
+    this.textElements = [];
     this._victoryCallback = () => {};
     this._defeatCallback = () => {};
+    this.timer = null;
+    this.timeRemaining = 60;
   }
-
   protected setupText() {
-    this._textElement = new Pixi.Text({
-      text: `Bullets left: ${this._player?.bulletsLeft}/${config.amount.playerBullets}`,
+    const bulletText = new Pixi.Text({
+      text: `Bullets left: ${this.player?.bulletsLeft}/${config.amount.playerBullets}`,
       style: {
         fontFamily: "Starjedi",
         fontSize: 28,
         fill: 0xffffff,
         align: "center",
       },
-      x: 10,
-      y: 10,
     });
-    this._app.stage.addChild(this._textElement);
+    bulletText.position.set(config.padding.text, config.padding.text);
+    this.app.stage.addChild(bulletText);
+
+    const timerText = new Pixi.Text({
+      text: `Time left: ${this.timeRemaining}`,
+      style: {
+        fontFamily: "Starjedi",
+        fontSize: 28,
+        fill: 0xffffff,
+        align: "center",
+      },
+    });
+    timerText.position.set(
+      this.app.screen.width - timerText.width - config.padding.text,
+      config.padding.text
+    );
+    this.app.stage.addChild(timerText);
+
+    this.textElements.push(bulletText, timerText);
   }
 
-  set setVictoryCallback(callback: () => void) {
+  set victoryCallback(callback: () => void) {
     this._victoryCallback = callback;
   }
 
-  set setDefeatCallback(callback: () => void) {
+  set defeatCallback(callback: () => void) {
     this._defeatCallback = callback;
   }
 
-  get playerBullets() {
-    return this._playerBullets;
+  startTimer() {
+    this.stopTimer();
+    this.timer = setInterval(() => {
+      this.timeRemaining -= 1;
+      this.updateTimeText();
+      console.log(this.timeRemaining);
+      if (this.timeRemaining <= 0) {
+        this.game.showDefeatOverlay();
+        this.stopTimer();
+        console.log("Time left: 0");
+      }
+    }, 1000);
   }
 
-  updateText() {
-    if (this._textElement) {
-      this._textElement.text = `Bullets left: ${this._player?.bulletsLeft}/${config.amount.playerBullets}`;
-      console.log("Text updated");
-      console.log(
-        `Current text: Bullets left: ${this._player?.bulletsLeft}/${config.amount.playerBullets}`
-      );
+  stopTimer() {
+    if (this.timer) {
+      clearInterval(this.timer);
+      this.timer = null;
     }
+  }
+
+  resetTimer() {
+    this.timeRemaining = 60;
+  }
+
+  updateBulletsText() {
+    this.textElements[0].text = `Bullets left: ${this.player.bulletsLeft}/${config.amount.playerBullets}`;
+  }
+
+  updateTimeText() {
+    this.textElements[1].text = `Time left: ${this.timeRemaining}`;
+  }
+
+  cleanup() {
+    this.textElements.forEach((text) => this.app.stage.removeChild(text));
+    this.playerBullets.reset(this.playerBullets, this.bulletsOnScreen);
+    this.stopTimer();
   }
 }
 export class AsteroidLevel extends Level {
-  private _asteroidStore: AsteroidStore;
-  private _textureStore: TextureStore;
+  private asteroidStore: AsteroidStore;
 
-  constructor(app: Pixi.Application<Pixi.Renderer>) {
-    super(app);
-    this._asteroidStore = new AsteroidStore(app);
-    this._textureStore = new TextureStore(app);
+  constructor(game: Game) {
+    super(game);
+    this.asteroidStore = new AsteroidStore(this.app);
   }
 
   watchForCollision() {
-    const bullets = this._playerBullets.bullets;
-    const asteroids = this._asteroidStore.asteroids;
+    const bullets = this.playerBullets.bullets;
+    const asteroids = this.asteroidStore.asteroids;
 
     bullets.forEach((bullet) => {
       if (bullet.isOffscreen()) {
-        bullet.remove(this._playerBullets, this._bulletsOnScreen);
+        bullet.remove(this.playerBullets, this.bulletsOnScreen);
         this.checkGameStatus();
       }
 
       asteroids.forEach((asteroid) => {
         if (checkCollision(bullet.graphics, asteroid.sprite)) {
-          const position: Position = {
-            x: asteroid.sprite.x,
-            y: asteroid.sprite.y,
-          };
-          bullet.remove(this._playerBullets, this._bulletsOnScreen);
-          asteroid.remove(this._asteroidStore);
-          const explosionTexture = this._textureStore.textures.explosion;
-          const explosion = new Explosion(this._app, explosionTexture);
-          explosion.setup(position);
+          bullet.remove(this.playerBullets, this.bulletsOnScreen);
+          asteroid.remove(this.asteroidStore);
+
+          const explosionTexture = this.game.textureStore.textures.explosion;
+          const explosion = new Explosion(this.app, explosionTexture);
+          explosion.setup({ x: asteroid.sprite.x, y: asteroid.sprite.y });
           explosion.remove();
+
           this.checkGameStatus();
           return;
         }
@@ -111,192 +146,161 @@ export class AsteroidLevel extends Level {
     if (this.checkVictoryCondition()) {
       console.log("Victory");
       this._victoryCallback();
-    }
-
-    if (this.checkDefeatCondition()) {
+    } else if (this.checkDefeatCondition()) {
       console.log("Defeat");
       this._defeatCallback();
     }
   }
 
   checkDefeatCondition() {
-    return (
-      this._player?.bulletsLeft === 0 && this._bulletsOnScreen.amount === 0
-    );
+    return this.player.bulletsLeft === 0 && this.bulletsOnScreen.amount === 0;
   }
 
   checkVictoryCondition() {
-    const asteroids = this._asteroidStore.asteroids;
-
-    return asteroids.length === 0;
+    return this.asteroidStore.asteroids.length === 0;
   }
 
-  setup(player: Player, texturesStore: TextureStore) {
-    this._textureStore = texturesStore;
-
-    const asteroidTexture = this._textureStore.textures.asteroid;
-    const playerTexture = this._textureStore.textures.player;
-
-    this._player = player;
-    this._player.setup(
-      playerTexture,
-      this._playerBullets,
-      this._bulletsOnScreen
+  setup() {
+    this.player.setup(
+      this.game.textureStore.textures.player,
+      this.playerBullets,
+      this.bulletsOnScreen
     );
-    this._player.updatetTextCallback = () => this.updateText();
+    this.player.updatetTextCallback = () => this.updateBulletsText();
 
     for (let i = 0; i < config.amount.asteroids; i++) {
-      const asteroid = new Asteroid(this._app);
-      asteroid.setup(asteroidTexture);
-      this._asteroidStore.addAsteroid(asteroid);
+      const asteroid = new Asteroid(this.app);
+      const texture = this.game.textureStore.textures.asteroid;
+
+      asteroid.setup(texture);
+      this.asteroidStore.addAsteroid(asteroid);
     }
 
     this.setupText();
-
-    this._app.ticker.add(this.watchForCollision.bind(this));
+    this.startTimer();
+    this.app.ticker.add(this.watchForCollision.bind(this));
   }
 
   cleanup() {
-    this._app.stage.removeChild(this._textElement);
-    this._app.ticker.remove(this.watchForCollision.bind(this));
-    this._asteroidStore.reset();
-    this._playerBullets.reset(this._playerBullets, this._bulletsOnScreen);
+    super.cleanup();
+    this.app.ticker.remove(this.watchForCollision.bind(this));
+    this.asteroidStore.reset();
   }
 }
+
 export class BossLevel extends Level {
-  private _boss: Boss;
-  private _bossBullets: BulletStore;
-  private _textureStore: TextureStore;
+  private boss: Boss;
+  private bossBullets: BulletStore;
 
-  constructor(app: Pixi.Application<Pixi.Renderer>) {
-    super(app);
-    this._boss = new Boss(app);
-    this._bossBullets = new BulletStore();
-    this._textureStore = new TextureStore(app);
-  }
-
-  get boss() {
-    return this._boss;
+  constructor(game: Game) {
+    super(game);
+    this.boss = new Boss(this.app);
+    this.bossBullets = new BulletStore();
   }
 
   watchForCollision() {
-    const playerBullets = this._playerBullets.bullets;
-    const bossBullets = this._bossBullets.bullets;
+    const playerBullets = this.playerBullets.bullets;
+    const bossBullets = this.bossBullets.bullets;
 
-    for (let i = 0; i < playerBullets.length; i++) {
-      if (playerBullets[i].isOffscreen()) {
-        playerBullets[i].remove(this._playerBullets, this._bulletsOnScreen);
+    playerBullets.forEach((bullet) => {
+      if (bullet.isOffscreen()) {
+        bullet.remove(this.playerBullets, this.bulletsOnScreen);
         this.checkGameStatus();
       }
 
-      if (
-        this.boss &&
-        checkCollision(playerBullets[i].graphics, this.boss.sprite)
-      ) {
-        const position: Position = {
-          x: this.boss.sprite.x,
-          y: this.boss.sprite.y,
-        };
-        const explosionTexture = this._textureStore.textures.explosion;
-        const explosion = new Explosion(this._app, explosionTexture);
-        playerBullets[i].remove(this._playerBullets, this._bulletsOnScreen);
+      if (checkCollision(bullet.graphics, this.boss.sprite)) {
+        bullet.remove(this.playerBullets, this.bulletsOnScreen);
         this.boss.bossHealth -= 1;
-        explosion.setup(position);
+
+        const explosionTexture = this.game.textureStore.textures.explosion;
+        const explosion = new Explosion(this.app, explosionTexture);
+        explosion.setup({ x: this.boss.sprite.x, y: this.boss.sprite.y });
         explosion.remove();
+
         console.log("Boss is hit");
         this.checkGameStatus();
       }
 
-      for (let i = 0; i < bossBullets.length; i++) {
-        if (
-          checkCollision(playerBullets[i].graphics, bossBullets[i].graphics)
-        ) {
-          const position: Position = {
-            x: bossBullets[i].graphics.x,
-            y: bossBullets[i].graphics.y,
-          };
-          const explosionTexture = this._textureStore.textures.explosion;
-          const explosion = new Explosion(this._app, explosionTexture);
-          playerBullets[i].remove(this._playerBullets, this._bulletsOnScreen);
-          bossBullets[i].remove(this._bossBullets, this._bulletsOnScreen);
-          explosion.setup(position);
+      bossBullets.forEach((bossBullet) => {
+        if (checkCollision(bullet.graphics, bossBullet.graphics)) {
+          bullet.remove(this.playerBullets, this.bulletsOnScreen);
+          bossBullet.remove(this.bossBullets, this.bulletsOnScreen);
+
+          const explosionTexture = this.game.textureStore.textures.explosion;
+          const explosion = new Explosion(this.app, explosionTexture);
+          explosion.setup({
+            x: bossBullet.graphics.x,
+            y: bossBullet.graphics.y,
+          });
           explosion.remove();
         }
-      }
-    }
+      });
+    });
 
-    for (let i = 0; i < bossBullets.length; i++) {
-      if (bossBullets[i].isOffscreen()) {
-        bossBullets[i].remove(this._bossBullets, this._bulletsOnScreen);
+    bossBullets.forEach((bossBullet) => {
+      if (bossBullet.isOffscreen()) {
+        bossBullet.remove(this.bossBullets, this.bulletsOnScreen);
         this.checkGameStatus();
       }
 
-      if (
-        this._player &&
-        checkCollision(bossBullets[i].graphics, this._player.sprite)
-      ) {
-        const position: Position = {
-          x: this._player.sprite.x,
-          y: this._player.sprite.y,
-        };
-        const explosionTexture = this._textureStore.textures.explosion;
-        const explosion = new Explosion(this._app, explosionTexture);
-        bossBullets[i].remove(this._bossBullets, this._bulletsOnScreen);
-        explosion.setup(position);
-        explosion.remove();
-        console.log("Player is hit");
-        this._player?.removeEventListeners();
+      if (checkCollision(bossBullet.graphics, this.player.sprite)) {
+        bossBullet.remove(this.bossBullets, this.bulletsOnScreen);
 
+        const explosionTexture = this.game.textureStore.textures.explosion;
+        const explosion = new Explosion(this.app, explosionTexture);
+        explosion.setup({ x: this.player.sprite.x, y: this.player.sprite.y });
+        explosion.remove();
+
+        console.log("Player is hit");
+        this.player.removeEventListeners();
         this._defeatCallback();
       }
-    }
+    });
   }
 
   checkGameStatus() {
     if (this.checkVictoryCondition()) {
       console.log("Victory");
       this._victoryCallback();
+      return;
     }
-
     if (this.checkDefeatCondition()) {
       console.log("Defeat");
       this._defeatCallback();
+      return;
     }
   }
 
   checkVictoryCondition() {
-    return this.boss?.bossHealth === 0;
+    return this.boss.bossHealth === 0;
   }
 
   checkDefeatCondition() {
-    return this._player?.bulletsLeft === 0 && this._bossBullets.amount === 0;
+    return this.player.bulletsLeft === 0 && this.bulletsOnScreen.amount === 0;
   }
 
-  setup(player: Player, texturesStore: TextureStore) {
-    this._textureStore = texturesStore;
-
-    const bossTexture = this._textureStore.textures.boss;
-    const playerTexture = this._textureStore.textures.player;
-
-    this._boss.setup(bossTexture, this._bossBullets, this._bulletsOnScreen);
-    this._player = player;
-    this._player.setup(
-      playerTexture,
-      this._playerBullets,
-      this._bulletsOnScreen
+  setup() {
+    this.boss.setup(
+      this.game.textureStore.textures.boss,
+      this.bossBullets,
+      this.bulletsOnScreen
     );
-    this._player.updatetTextCallback = () => this.updateText();
+    this.player.setup(
+      this.game.textureStore.textures.player,
+      this.playerBullets,
+      this.bulletsOnScreen
+    );
+    this.player.updatetTextCallback = () => this.updateBulletsText();
 
     this.setupText();
-
-    this._app.ticker.add(this.watchForCollision.bind(this));
+    this.startTimer();
+    this.app.ticker.add(this.watchForCollision.bind(this));
   }
 
   cleanup() {
-    this._app.stage.removeChild(this._textElement);
-    this._app.ticker.remove(this.watchForCollision.bind(this));
-    this._boss.reset();
-    this._bossBullets.reset(this._bossBullets, this._bulletsOnScreen);
-    this._playerBullets.reset(this.playerBullets, this._bulletsOnScreen);
+    super.cleanup();
+    this.boss.reset();
+    this.app.ticker.remove(this.watchForCollision.bind(this));
+    this.bossBullets.reset(this.bossBullets, this.bulletsOnScreen);
   }
 }
