@@ -68,10 +68,12 @@ export class Game {
   private showVictoryOverlay() {
     this.cleanup();
 
-    const victoryOverlay = new Overlay(
-      this._app,
-      "You win. Click to move to the next level"
-    );
+    const text =
+      this._level instanceof AsteroidLevel
+        ? "You win. Click to move to the next level"
+        : "You win. Click to restart";
+
+    const victoryOverlay = new Overlay(this._app, text);
     victoryOverlay.setup();
 
     victoryOverlay.overlay.on("click", () => {
