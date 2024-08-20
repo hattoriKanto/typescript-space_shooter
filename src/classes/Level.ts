@@ -123,6 +123,7 @@ export class AsteroidLevel extends Level {
   watchForCollision() {
     const bullets = this.playerBullets.bullets;
     const asteroids = this.asteroidStore.asteroids;
+    const explosionTexture = this.game.textureStore.textures.explosion;
 
     bullets.forEach((bullet) => {
       if (bullet.isOffscreen()) {
@@ -135,7 +136,6 @@ export class AsteroidLevel extends Level {
           bullet.remove(this.playerBullets, this.bulletsOnScreen);
           asteroid.remove(this.asteroidStore);
 
-          const explosionTexture = this.game.textureStore.textures.explosion;
           const explosion = new Explosion(this.app, explosionTexture);
           explosion.setup({ x: asteroid.sprite.x, y: asteroid.sprite.y });
           explosion.remove();
@@ -149,10 +149,8 @@ export class AsteroidLevel extends Level {
 
   checkGameStatus() {
     if (this.checkVictoryCondition()) {
-      console.log("Victory");
       this._victoryCallback();
     } else if (this.checkDefeatCondition()) {
-      console.log("Defeat");
       this._defeatCallback();
     }
   }
@@ -206,6 +204,7 @@ export class BossLevel extends Level {
   watchForCollision() {
     const playerBullets = this.playerBullets.bullets;
     const bossBullets = this.bossBullets.bullets;
+    const explosionTexture = this.game.textureStore.textures.explosion;
 
     playerBullets.forEach((bullet) => {
       if (bullet.isOffscreen()) {
@@ -217,7 +216,6 @@ export class BossLevel extends Level {
         bullet.remove(this.playerBullets, this.bulletsOnScreen);
         this.boss.bossHealth -= 1;
 
-        const explosionTexture = this.game.textureStore.textures.explosion;
         const explosion = new Explosion(this.app, explosionTexture);
         explosion.setup({ x: this.boss.sprite.x, y: this.boss.sprite.y });
         explosion.remove();
@@ -263,12 +261,10 @@ export class BossLevel extends Level {
 
   checkGameStatus() {
     if (this.checkVictoryCondition()) {
-      console.log("Victory");
       this._victoryCallback();
       return;
     }
     if (this.checkDefeatCondition()) {
-      console.log("Defeat");
       this._defeatCallback();
       return;
     }

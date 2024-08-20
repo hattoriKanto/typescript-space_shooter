@@ -111,10 +111,6 @@ export class Game {
     this._player.reset();
   }
 
-  public get app() {
-    return this._app;
-  }
-
   public get player() {
     return this._player;
   }
@@ -125,13 +121,5 @@ export class Game {
 
   public get app() {
     return this._app;
-  }
-
-  public get player() {
-    return this._player;
-  }
-
-  public get textureStore() {
-    return this._textureStore;
   }
 }
