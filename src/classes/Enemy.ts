@@ -1,7 +1,7 @@
 import * as Pixi from "pixi.js";
 import { config } from "../config";
 import { HorizontalMovementDirection } from "../types/types";
-import { AsteroidStore, BossBullet, BulletStore } from ".";
+import { AsteroidStore, BossBullet, BulletStore, TextureStore } from ".";
 
 class Enemy {
   protected _app: Pixi.Application<Pixi.Renderer>;
@@ -100,6 +100,8 @@ export class Asteroid extends Enemy {
 }
 
 export class Boss extends Enemy {
+  private _container: Pixi.Container;
+  private _textureStore: TextureStore;
   private _intervalBulletID: number = 0;
   private _intervalMovementID: number = 0;
   private _bossHealth: number = config.amount.bossHealth;
@@ -109,6 +111,8 @@ export class Boss extends Enemy {
   constructor(app: Pixi.Application<Pixi.Renderer>) {
     super(app);
 
+    this._container = new Pixi.Container();
+    this._textureStore = new TextureStore(app);
     this._bossBullets = new BulletStore();
     this._bulletsOnScreen = new BulletStore();
   }
@@ -149,18 +153,46 @@ export class Boss extends Enemy {
     }, 2000);
   }
 
-  private stopSetup() {
+  private stopMovementSetup() {
     this._intervalMovementID = window.setInterval(() => {
       this.handleStop();
     }, 3000);
   }
 
+  private updateHealthBarPositions() {
+    const healthBars = this._container.children.filter(
+      (child) =>
+        child instanceof Pixi.Sprite &&
+        child.texture === this._textureStore.textures.health
+    );
+
+    const totalHealthBarsWidth = healthBars.length * config.size.health;
+    const centerX = this._sprite.x;
+
+    const startX = centerX - totalHealthBarsWidth / 2;
+
+    for (let i = 0; i < healthBars.length; i++) {
+      const healthBar = healthBars[i] as Pixi.Sprite;
+      const step = i * config.size.health;
+
+      healthBar.x = startX + step + 12;
+    }
+  }
+
   protected update() {
     super.update(this.updateMovement.bind(this));
+    this.updateHealthBarPositions();
   }
 
   set bossHealth(health: number) {
     this._bossHealth = health;
+    const healthBars = this._container.children.filter(
+      (child) =>
+        child instanceof Pixi.Sprite &&
+        child.texture === this._textureStore.textures.health
+    );
+    const removedHealthBar = healthBars.pop() as Pixi.Sprite;
+    this._container.removeChild(removedHealthBar);
   }
 
   get bossHealth() {
@@ -168,22 +200,27 @@ export class Boss extends Enemy {
   }
 
   setup(
-    texture: Pixi.Texture,
+    textureStore: TextureStore,
     bossBullets: BulletStore,
     bulletsOnScreen: BulletStore
   ) {
-    this._sprite = new Pixi.Sprite(texture);
+    this._textureStore = textureStore;
 
+    const bossTexture = this._textureStore.textures.boss;
+
+    this._sprite = new Pixi.Sprite(bossTexture);
     this._sprite.anchor.set(0.5);
-    this._movementDirection = this.getInitialMovementDirection();
-    this._app.stage.addChild(this._sprite);
-
     this._sprite.x = this._app.canvas.width / 2;
     this._sprite.y =
       this._sprite.height + config.padding.screenTop + config.padding.text;
     this._sprite.setSize(config.size.boss);
     this._sprite.anchor.set(0.5, 0);
     this._sprite.rotation = Math.PI;
+    this._container.addChild(this._sprite);
+
+    this._movementDirection = this.getInitialMovementDirection();
+
+    this.setupHealthBar();
 
     this.setTickerCallback(this.update.bind(this));
     this._app.ticker.add(this._tickerCallback);
@@ -192,15 +229,31 @@ export class Boss extends Enemy {
     this._bulletsOnScreen = bulletsOnScreen;
 
     this.bulletSetup();
-    this.stopSetup();
+    this.stopMovementSetup();
+
+    this._app.stage.addChild(this._container);
+  }
+
+  setupHealthBar() {
+    const texture = this._textureStore.textures.health;
+
+    for (let i = 0; i < this._bossHealth; i++) {
+      const health = new Pixi.Sprite(texture);
+      this._container.addChild(health);
+
+      health.width = config.size.health;
+      health.height = config.size.health;
+      health.anchor.set(0.5, 0);
+
+      health.y = this._sprite.y - this._sprite.height - config.size.health;
+    }
   }
 
   reset() {
-    this._app.stage.removeChild(this._sprite);
+    this._app.stage.removeChild(this._container);
     this._app.ticker.remove(this._tickerCallback);
     this.bossHealth = config.amount.bossHealth;
     clearInterval(this._intervalBulletID);
     clearInterval(this._intervalMovementID);
-    console.log("Boss is reset");
   }
 }

@@ -16,7 +16,6 @@ export class Explosion {
   }
 
   setup(position: Position) {
-    console.log(this._sprite);
     this._sprite.setSize(config.size.explosion);
     this._sprite.x = position.x;
     this._sprite.y = position.y;

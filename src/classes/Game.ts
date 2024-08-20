@@ -25,23 +25,44 @@ export class Game {
     this._level = new AsteroidLevel(this);
   }
 
+  private async setup() {
+    try {
+      await this.loadAssets();
+      this._background.setup(this._textureStore.textures.background);
+    } catch (error) {
+      console.error("Failed to setup game:", error);
+    }
+  }
+
+  private async loadAssets() {
+    try {
+      Pixi.Assets.addBundle("images", images);
+      const [textures] = await Promise.all([
+        Pixi.Assets.loadBundle("images"),
+        Pixi.Assets.load(fonts.starJedi),
+      ]);
+      this._textureStore.textures = textures;
+    } catch (error) {
+      console.error("Failed to load assets:", error);
+    }
+  }
+
   private showStartOverlay() {
     const startOverlay = new Overlay(this._app, "Click to start");
     startOverlay.setup();
 
     startOverlay.overlay.on("click", () => {
-      this._level.setup();
-
-      this._level.victoryCallback = () => {
-        this.showVictoryOverlay();
-      };
-
-      this._level.defeatCallback = () => {
-        this.showDefeatOverlay();
-      };
-
+      this.initializeLevel(new AsteroidLevel(this));
       startOverlay.remove();
     });
+  }
+
+  private initializeLevel(level: AsteroidLevel | BossLevel) {
+    this._level = level;
+    this._level.setup();
+
+    this._level.victoryCallback = () => this.showVictoryOverlay();
+    this._level.defeatCallback = () => this.showDefeatOverlay();
   }
 
   private showVictoryOverlay() {
@@ -52,23 +73,13 @@ export class Game {
       "You win. Click to move to the next level"
     );
     victoryOverlay.setup();
+
     victoryOverlay.overlay.on("click", () => {
-      if (this._level instanceof AsteroidLevel) {
-        this._level = new BossLevel(this);
-      } else {
-        this._level = new AsteroidLevel(this);
-      }
-
-      this._level.setup();
-
-      this._level.victoryCallback = () => {
-        this.showVictoryOverlay();
-      };
-
-      this._level.defeatCallback = () => {
-        this.showDefeatOverlay();
-      };
-
+      const newLevel =
+        this._level instanceof AsteroidLevel
+          ? new BossLevel(this)
+          : new AsteroidLevel(this);
+      this.initializeLevel(newLevel);
       victoryOverlay.remove();
     });
   }
@@ -81,62 +92,34 @@ export class Game {
       "You lose. Click to try again"
     );
     defeatOverlay.setup();
+
     defeatOverlay.overlay.on("click", () => {
-      this.cleanup();
-
-      this._level = new AsteroidLevel(this);
-      this._level.setup();
-
-      this._level.victoryCallback = () => {
-        this.showVictoryOverlay();
-      };
-
-      this._level.defeatCallback = () => {
-        this.showDefeatOverlay();
-      };
-
+      this.initializeLevel(new AsteroidLevel(this));
       defeatOverlay.remove();
     });
   }
 
-  private async loadAssets() {
-    Pixi.Assets.addBundle("images", images);
-    const [textures] = await Promise.all([
-      Pixi.Assets.loadBundle("images"),
-      Pixi.Assets.load(fonts.starJedi),
-    ]);
-
-    this._textureStore.textures = textures;
-  }
-
-  private async setup() {
-    await this.loadAssets();
-    if (this._textureStore) {
-      const backgroundTexture = this._textureStore.textures.background;
-      this._background.setup(backgroundTexture);
-    }
-  }
-
-  get app() {
-    return this._app;
-  }
-
-  get player() {
-    return this._player;
-  }
-
-  get textureStore() {
-    return this._textureStore;
-  }
-
-  async start() {
+  public async start() {
     await this.setup();
     this.showStartOverlay();
   }
 
-  cleanup() {
-    this._level.cleanup();
+  private cleanup() {
+    if (this._level) {
+      this._level.cleanup();
+    }
     this._player.reset();
-    console.log("Game reset");
+  }
+
+  public get app() {
+    return this._app;
+  }
+
+  public get player() {
+    return this._player;
+  }
+
+  public get textureStore() {
+    return this._textureStore;
   }
 }

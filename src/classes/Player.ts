@@ -96,6 +96,5 @@ export class Player {
     this._bulletsLeft = config.amount.playerBullets;
     this._app.stage.removeChild(this._sprite);
     this.removeEventListeners();
-    console.log("Player is reset");
   }
 }

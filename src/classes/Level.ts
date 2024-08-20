@@ -1,9 +1,16 @@
 import * as Pixi from "pixi.js";
 
-import { AsteroidStore, Asteroid, Boss, Player, BulletStore, Game } from ".";
+import {
+  AsteroidStore,
+  Asteroid,
+  Boss,
+  Player,
+  BulletStore,
+  Game,
+  Explosion,
+} from ".";
 import { config } from "../config";
 import { checkCollision } from "../utils";
-import { Explosion } from "./Explosion";
 
 export class Level {
   protected game: Game;
@@ -73,11 +80,9 @@ export class Level {
     this.timer = setInterval(() => {
       this.timeRemaining -= 1;
       this.updateTimeText();
-      console.log(this.timeRemaining);
       if (this.timeRemaining <= 0) {
         this.game.showDefeatOverlay();
         this.stopTimer();
-        console.log("Time left: 0");
       }
     }, 1000);
   }
@@ -217,7 +222,6 @@ export class BossLevel extends Level {
         explosion.setup({ x: this.boss.sprite.x, y: this.boss.sprite.y });
         explosion.remove();
 
-        console.log("Boss is hit");
         this.checkGameStatus();
       }
 
@@ -251,7 +255,6 @@ export class BossLevel extends Level {
         explosion.setup({ x: this.player.sprite.x, y: this.player.sprite.y });
         explosion.remove();
 
-        console.log("Player is hit");
         this.player.removeEventListeners();
         this._defeatCallback();
       }
@@ -281,7 +284,7 @@ export class BossLevel extends Level {
 
   setup() {
     this.boss.setup(
-      this.game.textureStore.textures.boss,
+      this.game.textureStore,
       this.bossBullets,
       this.bulletsOnScreen
     );

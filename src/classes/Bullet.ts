@@ -54,7 +54,6 @@ export class Bullet {
     bulletsOnScreen.removeBulletByID(this._graphics.uid);
     this._app.stage.removeChild(this._graphics);
     this._app.ticker.remove(this._tickerCallback);
-    console.log("Bullet removed");
   }
 }
 

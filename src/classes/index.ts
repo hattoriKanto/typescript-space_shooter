@@ -7,3 +7,4 @@ export * from "./Player";
 export * from "./Level";
 export * from "./Bullet";
 export * from "./BulletStore";
+export * from "./Explosion";

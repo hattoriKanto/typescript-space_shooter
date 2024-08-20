@@ -8,6 +8,7 @@ export const config = {
     asteroid: 120,
     boss: 150,
     explosion: 100,
+    health: 25,
   },
   step: {
     player: 36,
